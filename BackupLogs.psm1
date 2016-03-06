@@ -22,7 +22,7 @@ function Backup-Logs {
 .PARAMETER Purge
     Optionally specifies a date, by age from today(), for which all older log files will be deleted.
 .EXAMPLE
-    PS .\> Backup-Logs 
+    PS .\> Backup-Logs
 
     Moves all .log files older than 7 days, from $env:USERPROFILE\Documents\WindowsPowerShell\log\ to $env:USERPROFILE\Documents\WindowsPowerShell\log\archive\
 .EXAMPLE
@@ -39,15 +39,15 @@ function Backup-Logs {
     param (
         [Parameter(Mandatory=$false, Position=0)]
         [string]
-        $path,
+        $path="$(join-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -ChildPath 'WindowsPowerShell\log')",
 
         [Parameter(Mandatory=$false, Position=1)]
-        [ValidateRange(0,9999)]
+        [ValidateRange(0,1825)]
         [int16]
         $age=7,
 
         [Parameter(Mandatory=$false, Position=2)]
-        [ValidateRange(0,9999)]
+        [ValidateRange(0,1825)]
         [int16]
         $purge = 90,
 
@@ -56,7 +56,7 @@ function Backup-Logs {
         $force,
 
         [Parameter(Mandatory=$false, Position=4)]
-        [ValidateRange(0,9999)]
+        [ValidateRange(0,1825)]
         [int16]
         $BackupCadence = 10
     )
@@ -64,8 +64,8 @@ function Backup-Logs {
     Show-Progress -msgAction Start -msgSource $MyInvocation.MyCommand.Name
     if (!($path))
     {
-        # Derive default path 
-        Write-Debug -Message '$path found empty, setting to $loggingPath'
+        # Derive default path
+        Write-Debug -Message "`$path found empty, setting to (`$loggingPath) $loggingPath" -Debug
         $path = $global:loggingPath
     }
     Write-Log -Message "Checking `$path: $path" -Function $MyInvocation.MyCommand.Name
@@ -107,7 +107,7 @@ function Backup-Logs {
             $logFileDateString = Get-Date -UFormat '%Y%m%d'
             Write-Log -Message "Archiving files older than $age days." -Function $MyInvocation.MyCommand.Name -Verbose
             Write-Log -Message " # # # BEGIN ROBOCOPY # # # # #`n" -Function $MyInvocation.MyCommand.Name
-        
+
             Write-Log -Message "About to run robocopy, logging to ""$path\Backup-Logs_$logFileDateString.log""" -Function $MyInvocation.MyCommand.Name
 
             & robocopy.exe """$path"" ""$path\archive"" /MINAGE:$age /MOV /R:1 /W:1 /NS /NC /NP /NDL /TEE" | Out-File -FilePath "$path\Backup-Logs_$logFileDateString.log" -Append -NoClobber
@@ -117,7 +117,7 @@ function Backup-Logs {
             # Now we attempt to cleanup (purge) any old files
             [System.DateTime]$purgeDate = (Get-Date).AddDays(-$purge)
             Write-Log -Message "Purge date is $purgeDate" -Function $MyInvocation.MyCommand.Name
-        
+
             # Enumerate files, and purge those that haven't been updated wince $purge.
             Write-Log -Message "Deleting archive\ files older than $purgeDate" -Function $MyInvocation.MyCommand.Name -Verbose
 
