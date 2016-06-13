@@ -1,4 +1,4 @@
-﻿#Requires -Version 3.0 -Modules PSLogger
+﻿#Requires -Version 3.0
 
 function Show-Progress  {
 <#

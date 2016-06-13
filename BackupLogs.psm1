@@ -1,4 +1,4 @@
-﻿#Requires -Version 3.0 -Modules PSLogger
+﻿#Requires -Version 3.0
 
 New-Variable -Name LastLogBackup -Description 'TimeStamp of the last time the Backup-Logs function was processed' -Scope Global -Force
 
@@ -38,6 +38,7 @@ function Backup-Logs {
     [cmdletbinding()]
     param (
         [Parameter(Mandatory=$false, Position=0)]
+        [ValidateScript({Test-Path -Path $PSItem -PathType Any})]
         [string]
         $path="$(join-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -ChildPath 'WindowsPowerShell\log')",
 
@@ -62,7 +63,7 @@ function Backup-Logs {
     )
 
     Show-Progress -msgAction Start -msgSource $MyInvocation.MyCommand.Name
-    if (!($path))
+    if ( -not ($path))
     {
         # Derive default path
         Write-Debug -Message "`$path found empty, setting to (`$loggingPath) $loggingPath" -Debug
@@ -135,4 +136,4 @@ function Backup-Logs {
 
 New-Alias -Name Archive-Logs -Value Backup-Logs -Description 'PSLogger Module' -ErrorAction SilentlyContinue
 
-Export-ModuleMember -Function Backup-Logs -Alias Archive-Logs
+# Export-ModuleMember -Function Backup-Logs -Alias Archive-Logs

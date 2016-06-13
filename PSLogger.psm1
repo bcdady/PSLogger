@@ -71,32 +71,6 @@ Function Write-Log
     .EXAMPLE
         PS .\>Write-Log -Message "Test Message ... this is another test of the Write-Log function, to a custom specified path" -Function TEST -Path $env:TEMP\testing.log
 
-    .Example
-        PS C:\> . c:\scripts\write-log.ps1
-
-        Here is a sample function that uses the Write-Log function after it has been dot sourced. Within the sample
-        function, the logging variables are defined.
-
-        Function TryMe {
-        [cmdletbinding()]
-        Param([string]$computername=$env:computername,
-        [string]$Log
-        )
-        if ($log)
-        {
-        $loggingPreference="Continue"
-        $logFilePref=$log
-        }
-        Write-log "Starting Command"
-        Write-log "Connecting to $computername"
-        $b=gwmi win32_bios -ComputerName $computername
-        $b
-        Write-log $b.version
-        Write-Log "finished" $log
-        }
-
-        TryMe -log e:\logs\sample.txt -verbose
-
     .Notes
         NAME: Write-Log
         AUTHOR: Bryan Dady, adapted from original work by Jeffery Hicks
@@ -111,7 +85,8 @@ Function Write-Log
 #>
     [cmdletbinding()]
     Param(
-        [Parameter(Mandatory = $true,
+        [Parameter(
+            Mandatory = $true,
             Position = 0,
             ValueFromPipeline = $true,
             ValueFromPipelineByPropertyName = $true,
@@ -120,7 +95,8 @@ Function Write-Log
         [ValidateNotNullOrEmpty()]
         [string]$Message,
 
-        [Parameter(Mandatory = $false,
+        [Parameter(
+            Mandatory = $false,
             ValueFromPipeline = $true,
             ValueFromPipelineByPropertyName = $true,
             ValueFromRemainingArguments = $false,
@@ -131,7 +107,8 @@ Function Write-Log
         [Alias('Action', 'Source')]
         [String]$Function,
 
-        [Parameter(Position = 2,
+        [Parameter(
+            Position = 2,
                 ValueFromPipeline = $true,
                 ValueFromPipelineByPropertyName = $true,
                 ValueFromRemainingArguments = $false,
@@ -196,7 +173,7 @@ Function Write-Log
     if ($loggingPreference -eq 'Continue')
     {
 
-        # BEfore writing a copy of $Message to an output file, strip line breaks and/or other formatting that could interfere with clear/standardized logging
+        # Before writing a copy of $Message to an output file, strip line breaks and/or other formatting that could interfere with clear/standardized logging
         $Message = $Message -replace "`n", ' '
         $Message = $Message -replace '\s{2,}', ' '
 
@@ -311,8 +288,6 @@ Write-Output -InputObject "[Debug] `$latestLogFile is $latestLogFile" -Debug
             Write-Output -InputObject "`n[EOF]`n"
         }
     } else
-    }
-	else 
     {
         Write-Warning -Message "Could not open $latestLogFile for reading"
     }
@@ -325,4 +300,4 @@ Function Get-LatestLogs
     Select-Object -First 10
 }
 
-Export-ModuleMember -Function Backup-Logs, Get-StringHash, Write-Log, TryMe, Read-Log, Get-LatestLogs, Show-Progress -Alias Archive-Logs
+# Export-ModuleMember -Function Backup-Logs, Get-StringHash, Write-Log, Read-Log, Get-LatestLogs, Show-Progress -Alias Archive-Logs
