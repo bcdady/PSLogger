@@ -2,7 +2,7 @@
 
 New-Variable -Name LastLogBackup -Description 'TimeStamp of the last time the Backup-Logs function was processed' -Scope Global -Force
 
-[bool]$backupNow = $true
+[bool]$Global:backupNow = $true
 function Backup-Logs {
 <#
 .SYNOPSIS
@@ -93,7 +93,7 @@ function Backup-Logs {
             # Is today on or after $NextBackupDate ?
             if ($NextBackupDate -ge (Get-Date)) {
                 # we DON'T need to backup right now
-                $backupNow = $false
+                $Global:backupNow = $false
             }
         } else {
             # log archive path doesn't yet exist, so create it
@@ -103,7 +103,7 @@ function Backup-Logs {
             # Since we've never backed up to this path before, leave $backupNow = $true
         }
 
-        if ($backupNow -or $force) {
+        if ($Global:backupNow -or $force) {
             # we can now proceed with backing up logs
             $logFileDateString = Get-Date -UFormat '%Y%m%d'
             Write-Log -Message "Archiving files older than $age days." -Function $MyInvocation.MyCommand.Name -Verbose
