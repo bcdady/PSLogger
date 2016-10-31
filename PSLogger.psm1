@@ -188,21 +188,21 @@ Function Write-Log
         # Only need to do this once per unique $LogFile path, so use $writeIntro as that flag
         if ($writeIntro -and (-not (Test-Path -Path $(Split-Path -Path $LogFile -Parent) -PathType Container) ) )
         {
-            Write-Output -InputObject "$(Get-Date) Creating logging path: $(Split-Path -Path $LogFile)" -NoEnumerate | Out-Host
+            Write-Output -InputObject "$(Get-Date) Creating logging path: $(Split-Path -Path $LogFile)" | Out-Host
             New-Item -Path $(Split-Path -Path $LogFile) -Force -ItemType Directory -ErrorAction Ignore
         }
 
         if ($testMode)
         {
-            Write-Output -InputObject "$(Get-Date) [Debug] $Message" -NoEnumerate | Out-File -FilePath $LogFile -Append
+            Write-Output -InputObject "$(Get-Date) [Debug] $Message" | Out-File -FilePath $LogFile -Append
         }
         elseif ($PSBoundParameters['Verbose'].IsPresent)
         {
-            Write-Output -InputObject "$(Get-Date) [Verbose] $Message" -NoEnumerate | Out-File -FilePath $LogFile -Append
+            Write-Output -InputObject "$(Get-Date) [Verbose] $Message" | Out-File -FilePath $LogFile -Append
         }
         else
         {
-            Write-Output -InputObject "$(Get-Date) $Message" -NoEnumerate | Out-File -FilePath $LogFile -Append
+            Write-Output -InputObject "$(Get-Date) $Message" | Out-File -FilePath $LogFile -Append
         }
     }
 } #end function
