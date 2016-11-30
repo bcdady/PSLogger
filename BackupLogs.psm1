@@ -84,7 +84,7 @@ function Backup-Logs {
             }
             else
             {
-                $LastLogBackup = (Get-Date -Date $LastLogFile.LastAccessTime)
+                $LastLogBackup = (Get-Date -Date $LastLogFile.LastWriteTime)
             }
             Write-Log -Message "LastLogBackup was $($LastLogBackup.GetDateTimeFormats('d') | Select-Object -First 1)" -Function $MyInvocation.MyCommand.Name -Verbose
             $NextBackupDate = $LastLogBackup.AddDays($BackupCadence)
