@@ -15,12 +15,14 @@ function Show-Progress  {
     This can be passed in via the $MyInvocation.MyCommand.Name variable, so that the output log file the message is written to dynamically matches the script/module/function it was called by.
 
 .EXAMPLE
-    PS > Show-Progress 'Start'; # Log start time-stamp
-
-<< get example output and add into ShowProgress.ps1 Help >>
+    PS .\> Show-Progress 'Start'
+    
+    Log start time-stamp by passing a standard message through the Write-Log function
 
 .EXAMPLE
-PS > Show-Progress 'Stop'; # Log end time-stamp
+    PS .\> Show-Progress 'Stop'
+    
+    Log end time-stamp by passing a standard message through the Write-Log function
 
 .NOTES
     NAME        :  Show-Progress
@@ -30,29 +32,34 @@ PS > Show-Progress 'Stop'; # Log end time-stamp
 #>
     [cmdletbinding()]
     param (
-        [Parameter(Mandatory=$true, Position=0)]
+        [Parameter(
+            Mandatory,
+            Position=0
+        )]
         [alias('mode','scope')]
         [ValidateSet('Start', 'Stop',$null)]
-        [String[]]
+        [String]
         $msgAction,
 
-        [Parameter(Mandatory=$false, Position=1)]
+        [Parameter(Position=1)]
         [alias('action','source')]
-        [string[]]
+        [string]
         $msgSource = 'PowerShell'
     )
 
 	Switch ($msgAction) {
-        'Start' {
+        'Start'
+        {
 			Write-Log -Message "Starting $msgSource`n" -Function "$msgSource"
-
-		};
-        'Stop'  {
+		}
+        'Stop'
+        {
 			Write-Log -Message "Exiting $msgSource`n`n" -Function "$msgSource"
-
-		};
-        default { Write-Log -Message "continuing $msgSource`n" -Function $msgSource
-        };
+		}
+        default
+        {
+            Write-Log -Message "continuing $msgSource`n" -Function $msgSource
+        }
     }
 }
 

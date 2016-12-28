@@ -6,39 +6,93 @@
         PSLogger provides functions to Write logs, find / enumerate recently written log files, and Read the latest lines of recent .log files.
     .NOTES
         NAME        :  PSLogger
-        VERSION     :  1.3.5
-        LAST UPDATED:  11/16/2015
+        LAST UPDATED:  12/19/2016
         AUTHOR      :  Bryan Dady | https://github.com/bcdady/
         Original Write-Log Author: Jeffery Hicks
         http://jdhitsolutions.com/blog
         http://twitter.com/JeffHicks
         Date: 3/3/2011
 #>
-
-# Setup necessary configs for PSLogger's Write-Log cmdlet
-[string]$global:loggingPreference = 'Continue'
-# set $loggingPreference to anything other than continue, to leverage write-debug or write-verbose, without writing to a log on the filesystem
-
-# Define $loggingPath as .\WindowsPowerShell\log directory, under the user's profile Documents folder.
-# To assure portability and compatability across client and server, and various OS versions, we use special Environment paths, instead of $HOME or $env:userprofile
-# http://windowsitpro.com/powershell/easily-finding-special-paths-powershell-scripts
-# If this path doesn't already exist, it will be created later, in Write-Log function
-[string]$global:loggingPath = Join-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -ChildPath 'WindowsPowerShell\log'
-# Handle when special Environment variable MyDocuments is a mapped drive, it returns as the full UNC path.
-if (([Environment]::GetFolderPath('MyDocuments')).Substring(0,2) -match '\\')
+function Initialize-Logging
 {
-    $global:loggingPath = $loggingPath.Replace("$(Split-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -Parent)"+'\',$(Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript {
-                $PSItem.DisplayRoot -eq $(Split-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -Parent)
-    }).Root)
+<#
+    .Synopsis
+        Sets up shared constants and variables for PSLogger module
+    .Description
+        
+    .Parameter logPref
+        Optional override for using the Write-Log function without writing to a log file
+    .Parameter Path
+        Optional override for the directory path to write log files to
+    .Parameter Date
+        The filename and path for the log file. The default is defined as $loggingPath (above)
+        If $logFilePref variable is (bound) and passed into the Write-Log function, then that override path value will be used.
+
+    .EXAMPLE
+        PS .\> Initialize-Logging
+
+        Initializes all default constants for PSLogger functions
+
+    .EXAMPLE
+        PS .\>Initialize-Logging -Path C:\PSlogs -Verbose
+
+        Initializes logging path to C:\testlogs\ for PSLogger Write-Log function, with verbose output
+
+    .Link
+        Write-Log
+#>
+    [cmdletbinding(SupportsShouldProcess)]
+    Param(
+        [Parameter(Position = 0)]
+        [ValidateSet('','Continue')]
+        [string]
+        $logPref = 'Continue'
+        ,
+        [Parameter(
+            Position = 1,
+            ValueFromRemainingArguments = $true
+        )]
+        [ValidateScript({Test-Path -Path $PSItem -PathType Container -IsValid})]
+        [Alias('Root', 'Directory')]
+        [String]
+        $Path = $(Join-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -ChildPath 'WindowsPowerShell\log')
+        ,
+        [Parameter(Position = 2)]
+        [ValidateScript({Get-Date -Date $PSItem})]
+        [String]
+        $Date = $(Get-Date -UFormat '%Y%m%d')
+    )
+
+    # Setup necessary configs for PSLogger's Write-Log cmdlet
+    # set $loggingPreference to anything other than continue, to leverage write-debug or write-verbose, without writing to a log on the filesystem
+    [string]$global:loggingPreference = $logPref
+
+    # Define $loggingPath; defaault is user's profile Documents\WindowsPowerShell\log directory
+    # To assure portability and compatability across client and server, and various OS versions, we use special Environment paths, instead of $HOME or $env:userprofile
+    # http://windowsitpro.com/powershell/easily-finding-special-paths-powershell-scripts
+    # If this path doesn't already exist, it will be created later, in the Write-Log function
+    [string]$global:loggingPath = $Path
+
+    <#
+    # Handle when special Environment variable MyDocuments is a mapped drive, it returns as the full UNC path.
+    if (([Environment]::GetFolderPath('MyDocuments')).Substring(0,2) -match '\\')
+    {
+        $global:loggingPath = $loggingPath.Replace("$(Split-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -Parent)"+'\',$(Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript {
+                    $PSItem.DisplayRoot -eq $(Split-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -Parent)
+        }).Root)
+
+    }
+    #>
+    $global:logFileDateString = $Date -as [string]
+
+    Write-Debug -Message "Initialize PSLogging : logPref = $global:loggingPreference, Path = $global:loggingPath, Date = $global:logFileDateString"
+
+    Write-Verbose -Message "Initialize PSLogging : logPref = $global:loggingPreference, Path = $global:loggingPath, Date = $global:logFileDateString"
+
+    New-Variable -Name LastFunction -Description "Retain 'state' of the last function name called, to streamline logging statements from the same function" -Force -Scope Global -Visibility Public
+    [bool]$writeIntro = $true
 
 }
-
-[string]$global:logFileDateString = Get-Date -UFormat '%Y%m%d'
-# Need to keep an eye on this one, in case PowerShell sessions run for multiple days, I doubt this variable value will be refreshed / updated
-
-New-Variable -Name LastFunction -Description "Retain 'state' of the last function name called, to streamline logging statements from the same function" -Force -Scope Global -Visibility Public
-[bool]$writeIntro = $true
-[string]$global:LastFunction
 
 Function Write-Log
 {
@@ -83,45 +137,56 @@ Function Write-Log
     .Link
         Write-Verbose
 #>
-    [cmdletbinding()]
+    [cmdletbinding(SupportsShouldProcess)]
     Param(
         [Parameter(
-            Mandatory = $true,
+            Mandatory,
             Position = 0,
             ValueFromPipeline = $true,
             ValueFromPipelineByPropertyName = $true,
             HelpMessage = 'The message string to write to the log file. It will be prepended with a date time stamp.'
         )]
         [ValidateNotNullOrEmpty()]
-        [string]$Message,
-
+        [string]
+        $Message
+        ,
         [Parameter(
-            Mandatory = $false,
             ValueFromPipeline = $true,
             ValueFromPipelineByPropertyName = $true,
-            ValueFromRemainingArguments = $false,
             Position = 1,
             HelpMessage = 'The Function Parameter passes the name of the Function or CmdLet that invoked this Write-Log function'
         )]
         [ValidateNotNullOrEmpty()]
         [Alias('Action', 'Source')]
-        [String]$Function,
-
+        [String]
+        $Function = 'PowerShell'
+        ,
         [Parameter(
             Position = 2,
-                ValueFromPipeline = $true,
-                ValueFromPipelineByPropertyName = $true,
-                ValueFromRemainingArguments = $false,
+            ValueFromPipeline = $true,
+            ValueFromPipelineByPropertyName = $true,
             HelpMessage = 'The optional Path parameter specifies the path of the log file to write the message to.'
         )]
         [ValidateScript({Test-Path -Path $PSItem -PathType Any})]
-        [string]$Path
+        [string]
+        $Path
+        ,
+        [Parameter(
+            Position = 3
+        )]
+        [switch]
+        $PassThru        
     )
 
-    # Assign Function variable to 'PowerShell' if blank or null
-    if (($Function -eq $null) -or ($Function -eq ''))
+    # Check if logging is initialized, and if not, call Initialize-Logging to initialize defaults
+    if (-not (Get-Variable -Name loggingPath -ErrorAction Ignore))
     {
-        $Function = 'PowerShell'
+        Write-Verbose -Message "Initialize-Logging with defaults" -Verbose
+        Initialize-Logging
+    }
+    else
+    {
+        Write-Debug -Message "PSLogging was previously initialized as follows: logPref = $global:loggingPreference, Path = $global:loggingPath, Date = $global:logFileDateString"
     }
 
     # Detect if this Function is the same as the $LastFunction. If not, verbosely log which new Function is active
@@ -139,15 +204,16 @@ Function Write-Log
     # Detect -debug mode:
     # http://blogs.msdn.com/b/powershell/archive/2009/04/06/checking-for-bound-parameters.aspx
     # https://kevsor1.wordpress.com/2011/11/03/powershell-v2-detecting-verbose-debug-and-other-bound-parameters/
+    $testMode = $false
     if ($PSBoundParameters['Debug'].IsPresent)
     {
         [bool]$script:testMode = $true
-        $logFilePref = Join-Path -Path "$loggingPath\test" -ChildPath "$("$Function", "$logFileDateString" -join '_').log"
+        $logFilePref = $(Join-Path -Path "$loggingPath\debug" -ChildPath "$("$Function", "$logFileDateString" -join '_').log").ToLower()
+        $testMode = $true
     }
     else
     {
-        [bool]$testMode = $false
-        $logFilePref = Join-Path -Path "$loggingPath" -ChildPath "$("$Function", "$logFileDateString" -join '_').log"
+        $logFilePref = $(Join-Path -Path "$loggingPath" -ChildPath "$("$Function", "$logFileDateString" -join '_').log").ToLower()
     }
 
     # Pass on the message to Write-Debug cmdlet if -Debug parameter was used
@@ -156,7 +222,7 @@ Function Write-Log
         Write-Debug -Message $Message
         if ($writeIntro -and ( $Message -notlike 'Exit*'))
         {
-            Write-Output -InputObject "Logging [Debug] to $logFilePref`n"
+            Write-Output -InputObject "Logging [Debug] to $logFilePref"
         }
     }
     elseif ($PSBoundParameters['Verbose'].IsPresent)
@@ -165,14 +231,14 @@ Function Write-Log
         Write-Verbose -Message $Message
         if ($writeIntro -and ( $Message -notlike 'Exit*'))
         {
-            Write-Output -InputObject "Logging to $logFilePref`n"
+            Write-Output -InputObject "Logging to $logFilePref"
         }
     }
+    Write-Output -InputObject ''
 
     # Only write to the log file if the $LoggingPreference variable is set to Continue
     if ($loggingPreference -eq 'Continue')
     {
-
         # Before writing a copy of $Message to an output file, strip line breaks and/or other formatting that could interfere with clear/standardized logging
         $Message = $Message -replace "`n", ' '
         $Message = $Message -replace '\s{2,}', ' '
@@ -202,7 +268,14 @@ Function Write-Log
         }
         else
         {
-            Write-Output -InputObject "$(Get-Date) $Message" | Out-File -FilePath $LogFile -Append
+            if ($PassThru)
+            {
+                Write-Output -InputObject "$(Get-Date) $Message" | Tee-Object -FilePath $LogFile -Append
+            }
+            else
+            {
+                Write-Output -InputObject "$(Get-Date) $Message" | Out-File -FilePath $LogFile -Append
+            }
         }
     }
 } #end function
@@ -245,10 +318,9 @@ Function Read-Log
         * Length
         * Path
 #>
-    [cmdletbinding()]
+    [cmdletbinding(SupportsShouldProcess)]
     Param(
         [Parameter(
-            Mandatory = $false,
             Position = 0,
             HelpMessage = 'The message source typically matches a log filename string, which represents the name of the function or module which wrote the log file.'
         )]
@@ -256,7 +328,6 @@ Function Read-Log
         [string]$MessageSource,
 
         [Parameter(
-            Mandatory = $false,
             Position = 1,
             HelpMessage = 'Provide an integer of line numbers to read from the bottom of the log file.'
         )]
@@ -295,9 +366,26 @@ Write-Output -InputObject "[Debug] `$latestLogFile is $latestLogFile" -Debug
 
 Function Get-LatestLogs
 {
-    Get-ChildItem -Path $loggingPath |
-    Sort-Object -Descending -Property LastWriteTime |
-    Select-Object -First 10
-}
+    [cmdletbinding(SupportsShouldProcess)]
+    Param(
+        [Parameter(
+            Position = 0,
+            ValueFromPipeline = $true,
+            ValueFromPipelineByPropertyName = $true
+        )]
+        [ValidateScript({Test-Path -Path $PSItem -PathType Any})]
+        [string]$Path = $global:loggingPath
+        ,
+        [Parameter(
+            Position = 1
+        )]
+        [ValidateRange(1,99)]
+        [Alias('c')]
+        [int16]$Count = 10
+    )
 
-# Export-ModuleMember -Function Backup-Logs, Get-StringHash, Write-Log, Read-Log, Get-LatestLogs, Show-Progress -Alias Archive-Logs
+    Write-Verbose -Message "Checking for most recent $Count log files at path $Path"
+    Write-Debug -Message "Get-ChildItem -Path Path | Sort-Object -Descending -Property LastWriteTime |  Select-Object -First $Count"
+    
+    return (Get-ChildItem -Path $Path | Sort-Object -Descending -Property LastWriteTime | Select-Object -First 10)
+}
