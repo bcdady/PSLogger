@@ -5,12 +5,12 @@
 *.cs   diff=csharp
 
 # PowerShell script and Module files are Windows ASCii text files
-*.ps1  text eol=crlf
-*.psm1 text eol=crlf
-*.psd1 text eol=crlf
-*.PS1  text eol=crlf
-*.PSM1 text eol=crlf
-*.PSD1 text eol=crlf
+*.ps1  text 
+*.psm1 text 
+*.psd1 text 
+*.PS1  diff=astextplain
+*.PSM1 diff=astextplain
+*.PSD1 diff=astextplain
 
 # Standard to msysgit
 *.doc  diff=astextplain
