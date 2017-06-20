@@ -15,7 +15,7 @@
 #>
 function Initialize-Logging
 {
-<#
+  <#
     .Synopsis
         Sets up shared constants and variables for PSLogger module
     .Description
@@ -40,7 +40,7 @@ function Initialize-Logging
 
     .Link
         Write-Log
-#>
+  #>
     [cmdletbinding(SupportsShouldProcess)]
     Param(
         [Parameter(Position = 0)]
@@ -67,8 +67,8 @@ function Initialize-Logging
     # set $loggingPreference to anything other than continue, to leverage write-debug or write-verbose, without writing to a log on the filesystem
     [string]$global:loggingPreference = $logPref
 
-    # Define $loggingPath; defaault is user's profile Documents\WindowsPowerShell\log directory
-    # To assure portability and compatability across client and server, and various OS versions, we use special Environment paths, instead of $HOME or $env:userprofile
+    # Define $loggingPath; default is user's profile Documents\WindowsPowerShell\log directory
+    # To assure portability and compatibility across client and server, and various OS versions, we use special Environment paths, instead of $HOME or $env:userprofile
     # http://windowsitpro.com/powershell/easily-finding-special-paths-powershell-scripts
     # If this path doesn't already exist, it will be created later, in the Write-Log function
     [string]$global:loggingPath = $Path
@@ -171,10 +171,14 @@ Function Write-Log
     $PassThru        
   )
 
+    # Jun 2017 -- add some sanity checking / validation
+    Write-Debug -Message "$Function = $(Split-Path -Path $Function -Leaf)"
+    $Function = $(Split-Path -Path $Function -Leaf).Split('.')[0]
+
   # Check if logging is initialized, and if not, call Initialize-Logging to initialize defaults
   if (-not (Get-Variable -Name loggingPath -ErrorAction Ignore))
   {
-    Write-Verbose -Message "Initialize-Logging with defaults" -Verbose
+    Write-Verbose -Message "Initialize-Logging with defaults"
     Initialize-Logging
   }
   else
@@ -186,7 +190,7 @@ Function Write-Log
   if ($Function -eq $LastFunction)
   {
     # Retain 'state' of the last function name called, to streamline logging statements from the same function
-    $writeIntro = $false
+    $WriteIntro = $false
   }
   else
   {
@@ -213,7 +217,7 @@ Function Write-Log
   if ($testMode)
   {
     Write-Debug -Message $Message
-    if ($writeIntro -and ( $Message -notlike 'Exit*'))
+    if ($WriteIntro -and ( $Message -notlike 'Exit*'))
     {
       Write-Output -InputObject "Logging [Debug] to $logFilePref"
     }
