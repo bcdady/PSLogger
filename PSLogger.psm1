@@ -55,7 +55,7 @@ function Initialize-Logging
         [ValidateScript({Test-Path -Path $PSItem -PathType Container -IsValid})]
         [Alias('Root', 'Directory')]
         [String]
-        $Path = $(Join-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -ChildPath 'WindowsPowerShell\log')
+        $Path = $(Join-Path -Path "$HOME" -ChildPath '*\WindowsPowerShell\log' -Resolve)
         ,
         [Parameter(Position = 2)]
         [ValidateScript({Get-Date -Date $PSItem})]
@@ -357,9 +357,27 @@ Function Read-Log
     }
 } #end function
 
-Function Get-LatestLogs
-{
-    [cmdletbinding(SupportsShouldProcess)]
+Function Get-LatestLog {
+  <#
+    .SYNOPSIS
+      Enumerates most recently written-to log files
+    .DESCRIPTION
+      Enumerates most recently written-to log files.
+      By default, this function looks in the folder specified by the globaly defined $LoggingPath variable, for the 10 files with the most recent LastWriteTime property.
+
+    .EXAMPLE
+      PS .\> Get-LatestLog
+      Enumerates most recent 10 files in the default \log\ folder
+    .PARAMETER Path
+      Specifies which folder to enumerate files from
+      Default is $global:loggingPath
+    .PARAMETER Count
+      Specifies how many recent / latest log files to return
+      Default is 10
+    .NOTES
+      Last Updated June 30, 2017 -- Get-LatestLogs function: Corrected handling of Count parameter. Added Comment-based help. Made function name singular.
+  #>
+  [cmdletbinding()]
     Param(
         [Parameter(
             Position = 0,
@@ -367,8 +385,7 @@ Function Get-LatestLogs
             ValueFromPipelineByPropertyName = $true
         )]
         [ValidateScript({Test-Path -Path $PSItem -PathType Any})]
-        [string]$Path = $global:loggingPath
-        ,
+    [string]$Path = $global:loggingPath,
         [Parameter(
             Position = 1
         )]
@@ -378,7 +395,7 @@ Function Get-LatestLogs
     )
 
     Write-Verbose -Message "Checking for most recent $Count log files at path $Path"
-    Write-Debug -Message "Get-ChildItem -Path Path | Sort-Object -Descending -Property LastWriteTime |  Select-Object -First $Count"
+  Write-Debug -Message "Get-ChildItem -Path $Path | Sort-Object -Descending -Property LastWriteTime |  Select-Object -First $Count"
     
-    return (Get-ChildItem -Path $Path | Sort-Object -Descending -Property LastWriteTime | Select-Object -First 10)
+  return (Get-ChildItem -Path $Path -Exclude 'archive' | Sort-Object -Descending -Property LastWriteTime | Select-Object -First $Count)
 }
