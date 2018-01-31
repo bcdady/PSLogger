@@ -6,6 +6,7 @@
 # Generated on: 4/9/2015
 #
 # Update 1.4.4:  6/20/2017, Add PrivateData values
+# Update 1.4.5: 01/18/2018 - Improve output formatting (per PSScriptAnalyzer) and other minor script maintenance improvements
 #
 
 @{
@@ -14,7 +15,7 @@
 RootModule = 'PSLogger.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.4.4'
+ModuleVersion = '1.4.5'
 
 # ID used to uniquely identify this module
 GUID = '5665bc78-c5ff-423b-86ba-71b65c15048e'
@@ -69,7 +70,7 @@ PowerShellVersion = '3.0'
 NestedModules = @('ShowProgress.psm1','BackupLogs.psm1','GetStringHash.psm1')
 
 # Functions to export from this module
-FunctionsToExport = 'Backup-Logs', 'Get-LatestLogs', 'Get-StringHash', 'Initialize-Logging', 'Read-Log', 'Show-Progress', 'Write-Log'
+FunctionsToExport = 'Backup-Logs', 'Get-LatestLog', 'Get-StringHash', 'Initialize-Logging', 'Read-Log', 'Show-Progress', 'Write-Log'
 
 # Cmdlets to export from this module
 # CmdletsToExport = @()
@@ -104,7 +105,7 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        ReleaseNotes = 'Update 1.4.4:  6/20/2017, Add PrivateData values.'
+        ReleaseNotes = '1.4.5: Improve output formatting (per PSScriptAnalyzer) and other minor script maintenance improvements'
 
         # External dependent modules of this module
         ExternalModuleDependencies = 'PSLogger'
