@@ -5,8 +5,9 @@
 #
 # Generated on: 4/9/2015
 #
-# Update 1.4.4:  6/20/2017, Add PrivateData values
+# Update 1.4.4: 6/20/2017, Add PrivateData values
 # Update 1.4.5: 01/18/2018 - Improve output formatting (per PSScriptAnalyzer) and other minor script maintenance improvements
+# Update 1.4.6: 01/30/2018 - Enabled fail-open behavior, to just write host/console output, and fixed -PassThru parameter handling
 #
 
 @{
@@ -102,10 +103,11 @@ PrivateData = @{
         ProjectUri = 'https://github.com/bcdady/PSLogger/'
 
         # A URL to an icon representing this module.
+        # TO-DO: Find a 'Logger'/lumberjack logo/icon
         # IconUri = ''
 
         # ReleaseNotes of this module
-        ReleaseNotes = '1.4.5: Improve output formatting (per PSScriptAnalyzer) and other minor script maintenance improvements'
+        ReleaseNotes = '1.4.6: Enabled fail-open behavior, to just write host/console output, and fixed -PassThru parameter handling'
 
         # External dependent modules of this module
         ExternalModuleDependencies = 'PSLogger'

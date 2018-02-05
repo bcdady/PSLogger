@@ -54,31 +54,31 @@ Param()
         'RemotingCapability' = $Private:MyRemotingCapability
         'Visibility'         = $Private:MyVisibility
     }
-    $Script:MyScriptInfo = New-Object -TypeName PSObject -Property $Private:properties
+    $MyScriptInfo = New-Object -TypeName PSObject -Property $Private:properties
     Write-Verbose -Message '[PSLogger] $MyScriptInfo populated'
 
     # Cleanup
     foreach ($var in $Private:properties.Keys) {
-        Remove-Variable -Name ('My{0}' -f $var) -Force
+        Remove-Variable -Name ('My{0}' -f $var) -Scope Private -Force
     }
 
     $IsVerbose = $false
     if ('Verbose' -in $PSBoundParameters.Keys) {
         Write-Verbose -Message 'Output Level is [Verbose]. $MyScriptInfo is:'
         $IsVerbose = $true
-        $Script:MyScriptInfo
+        $MyScriptInfo
     }
 #End Region
 
 # Declare Variables Shared across module functions
-New-Variable -Name LoggingPath -Value $myPSLogPath -ErrorAction SilentlyContinue
+New-Variable -Name LoggingPath -Value $false -Option AllScope -ErrorAction SilentlyContinue
 
-New-Variable -Name LogFile -Value $false
-New-Variable -Name LogFileDateString -Value $false
-New-Variable -Name LoggingPreference -Value $false
+New-Variable -Name LogFile -Value $false -Option AllScope
+New-Variable -Name LogFileDateString -Value $false -Option AllScope
+New-Variable -Name LoggingPreference -Value $false -Option AllScope
 
-New-Variable -Name LastFunction -Description "Retain 'state' of the last function name called, to streamline Logging statements from the same function" -Force -Visibility Public
-New-Variable -Name WriteIntro -Value $true -ErrorAction SilentlyContinue
+New-Variable -Name LastFunction -Description "Retain 'state' of the last function name called, to streamline Logging statements from the same function" -Option AllScope -Force
+New-Variable -Name WriteIntro -Value $true  -Option AllScope -ErrorAction SilentlyContinue
 
 function Initialize-Logging {
     <#
@@ -131,20 +131,21 @@ function Initialize-Logging {
     # To assure portability and compatibility across client and server, and various OS versions, we use special Environment paths, instead of $HOME or $env:userprofile
     # http://windowsitpro.com/powershell/easily-finding-special-paths-powershell-scripts
     # If this path doesn't already exist, it will be created later, in the Write-Log function
-    $Script:LoggingPath = $Path
+    $LoggingPath = $Path
 
     # Handle when special Environment variable MyDocuments is a mapped drive, it returns as the full UNC path.
     if (([Environment]::GetFolderPath('MyDocuments')).Substring(0,2) -match '\\') {
-        $Script:LoggingPath = $Script:LoggingPath.Replace("$(Split-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -Parent)"+'\',$(Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript {
+        $LoggingPath = $LoggingPath.Replace("$(Split-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -Parent)"+'\',$(Get-PSDrive -PSProvider FileSystem | Where-Object -FilterScript {
         $PSItem.DisplayRoot -eq $(Split-Path -Path "$([Environment]::GetFolderPath('MyDocuments'))" -Parent)
         }).Root)
     }
 
-    #$1:LogFileDateString = $(Get-Date -UFormat '%Y%m%d')
+    Set-Variable -Name LoggingPath -Value $LoggingPath -Scope Script
     Set-Variable -Name LogFileDateString -Value (Get-Date -UFormat '%Y%m%d') -Scope Script
+    Set-Variable -Name LoggingPreference -Value 'Continue' -Scope Script
 
     # $LogFileDateString = $Date -as [string]
-    Write-Debug -Message ('Initialize PSLogging : logPref = {0}, Path = {1}, Date = {2}' -f $LoggingPreference, $Script:LoggingPath, $LogFileDateString)
+    Write-Debug -Message ('Initialize PSLogging : logPref = {0}, Path = {1}, Date = {2}' -f $LoggingPreference, $LoggingPath, $LogFileDateString)
 
     #New-Variable -Name LastFunction -Description "Retain 'state' of the last function name called, to streamline Logging statements from the same function" -Force -Visibility Public
     $WriteIntro = $true
@@ -234,15 +235,16 @@ Function Write-Log {
 
     # Gracefully handle condition where local scope $LastFunction is null
     if (-not (Get-Variable -Name LastFunction -ErrorAction SilentlyContinue)) {
-        Write-Verbose -Message 'Retrieving  $LastFunction from parent scope'
-        $LastFunction = (Get-Variable -Name LastFunction -Scope Script)
+        Write-Verbose -Message 'Matching $LastFunction to $Function'
+        $LastFunction = $Function
     }
     Write-Debug -Message ('$LastFunction is {0}' -f $LastFunction)
     
     # Check if logging is initialized, and if not, call Initialize-Logging to initialize defaults
-    if ($NULL -ne $Script:LoggingPath) {
-        if (Test-Path -Path $Script:LoggingPath -ErrorAction SilentlyContinue) {
-            Write-Debug -Message ('PSLogger is initialized to these variables: logPref = {0}, Path = {1}, Date = {2}' -f $LoggingPreference, $Script:LoggingPath, $LogFileDateString)
+    if ($LoggingPath) {
+        Write-Verbose -Message ('$LoggingPath is: {0}' -f $LoggingPath)
+        if (Test-Path -Path $LoggingPath -PathType Container -ErrorAction SilentlyContinue) {
+            Write-Debug -Message ('PSLogger is initialized to these variables: logPref = {0}, Path = {1}, Date = {2}' -f $LoggingPreference, $LoggingPath, $LogFileDateString)
         } else {
             Write-Verbose -Message '$LoggingPath unavailable; Initialize-Logging'
     	    Initialize-Logging
@@ -261,31 +263,33 @@ Function Write-Log {
         $WriteIntro = $true
     }
 
+    Write-Debug -Message ('$LoggingPath is {0}' -f [bool]$LoggingPath)
     # Gracefully handle condition where local scope $LoggingPath is null
-    if (-not (Get-Variable -Name LoggingPath -ErrorAction SilentlyContinue)) {
-        Write-Verbose -Message 'Retrieving  $LoggingPath from parent scope'
-        $LoggingPath = (Get-Variable -Name LoggingPath -Scope Script)
-    }
-    Write-Debug -Message ('$LoggingPath is {0}' -f $LoggingPath)
-    
-    #$Private:LogFileName = "$("$Function", "$LogFileDateString" -join '_').log"
-    $Private:LogFileName = ('{0}_{1}.log' -f $Function, $LogFileDateString)
-    $LogFilePref = Join-Path -Path $Script:LoggingPath -ChildPath $Private:LogFileName
+    if ($LoggingPath) {
+        $Private:LogFileName = ('{0}_{1}.log' -f $Function, $LogFileDateString)
+        $LogFilePref = Join-Path -Path $LoggingPath -ChildPath $Private:LogFileName
 
-    Write-Debug -Message ('$LogFilePref is {0}' -f $LogFilePref)
+        # Detect -debug mode:
+        # http://blogs.msdn.com/b/powershell/archive/2009/04/06/checking-for-bound-parameters.aspx
+        # https://kevsor1.wordpress.com/2011/11/03/powershell-v2-detecting-verbose-debug-and-other-bound-parameters/
+        $testMode = $false
+        if ('Debug' -in $PSBoundParameters.Keys) {
+            [bool]$testMode = $true
+            $LoggingPath = Join-Path -Path $LoggingPath -ChildPath 'Debug'
 
-    # Detect -debug mode:
-    # http://blogs.msdn.com/b/powershell/archive/2009/04/06/checking-for-bound-parameters.aspx
-    # https://kevsor1.wordpress.com/2011/11/03/powershell-v2-detecting-verbose-debug-and-other-bound-parameters/
-    $testMode = $false
-    if ('Debug' -in $PSBoundParameters.Keys) {
-        [bool]$script:testMode = $true
-        $LoggingPath = Join-Path -Path $Script:LoggingPath -ChildPath 'Debug'
-        if (Test-Path -Path $LoggingPath) {
-            Write-Verbose -Message ('Updated $LoggingPath to {0}' -f $LoggingPath)
-        } else {
-            Write-Verbose -Message ('Updating $LoggingPath to {0}' -f $LoggingPath)
-            New-Item -Path $Script:LoggingPath -ItemType Directory -Force
+            if (-not (Test-Path -Path $LoggingPath -PathType Container)) {
+                Write-Verbose -Message ('Updating $LoggingPath to {0}' -f $LoggingPath)
+                New-Item -Path $LoggingPath -ItemType Directory -Force
+            }
+        }
+
+        Write-Debug -Message ('$LogFilePref is {0}' -f $LogFilePref)
+    } else {
+        Write-Debug -Message '$LoggingPath is Undefined. Proceeding with host output only'
+        $LogFilePref = $NULL
+        $LoggingPreference = 'Ignore'
+        if ($WriteIntro) {
+            Write-Warning -Message 'Log File Undefined. Proceeding with host output only.'
         }
     }
 
@@ -304,8 +308,6 @@ Function Write-Log {
         if ($WriteIntro -and ($Message -NotLike 'Exit*')) {
             if ($LogFilePref) {
                 Write-Verbose -Message ('Logging to {0}' -f $LogFilePref)
-            } else {
-                throw 'Fatal Error: $LogFilePref is undefined.'
             }
         }
     }
@@ -322,8 +324,6 @@ Function Write-Log {
         if ($Path) {
             Write-Verbose -Message ('Set-Variable -Name LogFile -Value {0} -Force -PassThru' -f (Join-Path -Path $Path -ChildPath $Private:LogFileName))
             Set-Variable -Name LogFile -Value (Join-Path -Path $Path -ChildPath $Private:LogFileName) -Force
-        # } else {
-        #   throw 'Fatal error getting file system access to $Path'
         }
 
         # Confirm or create LogFile path, otherwise Out-File throws DirectoryNotFoundException;
@@ -337,7 +337,10 @@ Function Write-Log {
         Write-Debug -Message (' # # $LogFile is: {0}' -f $LogFile)
 
         if ($WriteIntro) {
-            Write-Output -InputObject ('{0} [Write-Log] {1}' -f (Get-Date), $LogFile) | Out-Host
+            Write-Verbose -Message ('{0} [Write-Log] {1}' -f (Get-Date), $LogFile)
+            if ($PassThru) {
+                Write-Output -InputObject ('{0} [Write-Log] {1}' -f (Get-Date), $LogFile) #  | Out-Host
+            }
         }
 
         if ($testMode) {
@@ -352,6 +355,10 @@ Function Write-Log {
             Write-Output -InputObject ('{0} {1}' -f (Get-Date), $Message) | Tee-Object -FilePath $LogFile -Append
         } else {
             Write-Output -InputObject ('{0} {1}' -f (Get-Date), $Message) | Out-File -FilePath $LogFile -Append
+        }
+    } else {
+        if ($PassThru) {
+            Write-Output -InputObject ('{0} {1}' -f (Get-Date), $Message)
         }
     }
 } #end function Write-Log
@@ -406,7 +413,7 @@ Function Read-Log {
     )
 
     Write-Output -InputObject ('Selecting latest log file to read last {0} lines' -f $lineCount)
-    Write-Verbose -Message ('Looking for log files in {0}' -f $Script:LoggingPath)
+    Write-Verbose -Message ('Looking for log files in {0}' -f $LoggingPath)
     Write-Verbose -Message ('Looking for log files with $MessageSource matching "{0}"' -f $MessageSource)
 
     $latestLogFile = $null
