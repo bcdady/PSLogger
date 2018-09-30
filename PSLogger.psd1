@@ -8,7 +8,8 @@
 # Update 1.4.4: 6/20/2017, Add PrivateData values
 # Update 1.4.5: 01/18/2018 - Improve output formatting (per PSScriptAnalyzer) and other minor script maintenance improvements
 # Update 1.4.6: 01/30/2018 - Enabled fail-open behavior, to just write host/console output, and fixed -PassThru parameter handling
-# Update 1.4.7: 03/11/2018 - Enhance Test-LocalAdmin function to behave on PowerShell Core, and on non-Win OS
+# Update 1.4.7: 03/11/2018 - Simplified (reduced) Verbose output by replacing some Write-Verbose with Write-Debug
+# Update 1.4.8: 04/20/2018 - Enhance Test-LocalAdmin function to behave on PowerShell Core, and on non-Win OS
 #
 
 @{
@@ -17,7 +18,7 @@
 RootModule = 'PSLogger.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.4.7'
+ModuleVersion = '1.4.8'
 
 # ID used to uniquely identify this module
 GUID = '5665bc78-c5ff-423b-86ba-71b65c15048e'
@@ -108,7 +109,7 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        ReleaseNotes = '1.4.7: 03/11/2018 - Enhance Test-LocalAdmin function to behave on PowerShell Core, and on non-Win OS'
+        ReleaseNotes = '1.4.8: 04/20/2018 - Enhance Test-LocalAdmin function to behave on PowerShell Core, and on non-Win OS'
 
         # External dependent modules of this module
         ExternalModuleDependencies = 'PSLogger'
