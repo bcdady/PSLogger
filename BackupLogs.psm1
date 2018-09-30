@@ -1,4 +1,4 @@
-﻿#Requires -Version 3.0
+#Requires -Version 3.0
 
 New-Variable -Name LastLogBackup -Description 'TimeStamp of the last time the Backup-Logs function was processed' -Scope Global -Force
 
@@ -65,22 +65,28 @@ function Backup-Logs {
     Show-Progress -msgAction Start -msgSource $MyInvocation.MyCommand.Name
     $ValidPath = $false
 
-    if (Test-Path -Path $Path -PathType Any -IsValid -ErrorAction SilentlyContinue) {
-        Write-Verbose -Message ('$Path parameter is: {0}' -f $Path)
-        $ValidPath = $true
+    if ((Get-Variable -Name Path -ErrorAction SilentlyContinue) -and ($NULL -ne $Path)) {
+        if (Test-Path -Path $Path -PathType Any -IsValid -ErrorAction SilentlyContinue) {
+            Write-Verbose -Message ('$Path parameter is: {0}' -f $Path)
+            $ValidPath = $true
+        } else {
+            # Derive default path
+            Write-Verbose -Message '$Path parameter not validated; setting to $myPSHome/log'
+            $Path = Join-Path -Path $myPSHome -ChildPath 'log'
+        }            
     } else {
         # Derive default path
-        Write-Verbose -Message ('$Path parameter not validated; setting to ($myPSLogPath): {0}' -f $myPSLogPath)
-        $Path = $global:myPSLogPath
+        Write-Verbose -Message '$Path parameter not validated; setting to $myPSHome/log'
+        $Path = Join-Path -Path $myPSHome -ChildPath 'log'
     }
     Write-Log -Message ('Checking $Path: {0}' -f $Path) -Function $MyInvocation.MyCommand.Name
 
     if ($ValidPath) {
         # confirmed $Path exists; see if \archive sub-folder exists
-        if (Test-Path -Path "$Path\archive") {
+        if (Test-Path -Path (Join-Path -Path $Path -ChildPath 'archive')) {
             Write-Log -Message 'Confirmed archive folder exists' -Function $MyInvocation.MyCommand.Name
             # set variable LastLogBackup based on the latest log file in $Path\archive
-            $LastLogFile = Get-ChildItem -Path $Path\archive -Filter *.log -File | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
+            $LastLogFile = Get-ChildItem -Path (Join-Path -Path $Path -ChildPath 'archive') -Filter *.log -File | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
             # Handle case where no last log file exists
             if ($LastLogFile) {
                 $LastLogBackup = (Get-Date -Date $LastLogFile.LastWriteTime)
@@ -99,7 +105,7 @@ function Backup-Logs {
         } else {
             # log archive path doesn't yet exist, so create it
             Write-Log -Message 'Creating archive folder' -Function $MyInvocation.MyCommand.Name
-            New-Item -ItemType Directory -Path $Path\archive
+            New-Item -ItemType Directory -Path (Join-Path -Path $Path -ChildPath 'archive')
             Set-Variable -Name LastLogBackup -Value (Get-Date -DisplayHint Date -Format d)
             # Since we've never backed up to this path before, leave $backupNow = $true
         }
@@ -110,14 +116,18 @@ function Backup-Logs {
             Write-Log -Message ('Archiving files older than {0} days.' -f $age) -Function $MyInvocation.MyCommand.Name
             Write-Log -Message " # # # BEGIN ROBOCOPY # # # # #`n" -Function $MyInvocation.MyCommand.Name
 
-            Write-Log -Message ('About to run robocopy, logging to ""{0}\Backup-Logs_{1}.log""' -f $Path, $logFileDateString) -Function $MyInvocation.MyCommand.Name
+            if ($IsWindows) {
+                Write-Log -Message ('About to run robocopy, logging to "{0}\Backup-Logs_{1}.log"' -f $Path, $logFileDateString) -Function $MyInvocation.MyCommand.Name
+                & "$env:WinDir\system32\robocopy.exe" ('{0} {1} /MINAGE:{2} /MOV /R:1 /W:1 /NS /NC /NP /NDL /TEE' -f $Path, (Join-Path -Path $Path -ChildPath 'archive'), $age) | Out-File -FilePath "$Path\Backup-Logs_$logFileDateString.log" -Append -NoClobber                    
+            } else {
+                Write-Log -Message ('About to move from {0} to "archive", logging to {0}\Backup-Logs_{2}.log' -f $Path, $logFileDateString) -Function $MyInvocation.MyCommand.Name
+                mv $Path, (Join-Path -Path $Path -ChildPath 'archive')
+            }
 
-            & "$env:windir\system32\robocopy.exe" """$Path"" ""$Path\archive"" /MINAGE:$age /MOV /R:1 /W:1 /NS /NC /NP /NDL /TEE" | Out-File -FilePath "$Path\Backup-Logs_$logFileDateString.log" -Append -NoClobber
-
-            Write-Log -Message " # # # END ROBOCOPY # # # # #`n" -Function $MyInvocation.MyCommand.Name
+            Write-Log -Message ' # # # END ROBOCOPY # # # # #' -Function $MyInvocation.MyCommand.Name
 
             # Now we attempt to cleanup (purge) any old files
-            [datetime]$purgeDate = (Get-Date).AddDays(-$purge)
+            [DateTime]$purgeDate = (Get-Date).AddDays(-$purge)
             Write-Log -Message ('Purge date is {0}' -f $purgeDate) -Function $MyInvocation.MyCommand.Name
 
             # Enumerate files, and purge those that haven't been updated wince $purge.
